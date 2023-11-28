@@ -1,3 +1,4 @@
+import shutil
 import sys
 import datetime
 import logging
@@ -14,13 +15,14 @@ from PyQt5.QtWidgets import (
 # TODO: pyinstaller --name=SumLoad --windowed --icon=/path/to/SumLoadIcon.ico --add-data=/path/to/SumLoadDefaultSettings.json:. --add-data=/path/to/SumLoadErrors.log:. main.py
 # TODO: pyinstaller SumLoad.spec
 
-
-logging.basicConfig(filename=pkg_resources.resource_filename(__name__, 'SumLoadErrors.log'), level=logging.ERROR)
+log_file = pkg_resources.resource_filename(__name__, 'SumLoadErrors.log')
+json_set_file = pkg_resources.resource_filename(__name__, 'SumLoadDefaultSettings.json')
+logging.basicConfig(filename=log_file, level=logging.ERROR)
 
 
 def get_settings(name_of_param: str):
     try:
-        with open(pkg_resources.resource_filename(__name__, 'SumLoadDefaultSettings.json'), "r") as json_file:
+        with open(json_set_file, "r", encoding="UTF-8") as json_file:
             return json.load(json_file)[name_of_param]
     except Exception:
         return None
@@ -71,6 +73,9 @@ class MainWindow(QMainWindow):
         super().__init__()
 
         # Создаем виджеты
+        self.get_log_btn = QPushButton('GetLog')
+        self.get_log_btn.setMaximumSize(70, 30)
+
         self.open_button = QPushButton('Открыть файл')
         default_path = get_settings("file_path")
         if default_path and not os.path.exists(default_path):
@@ -81,12 +86,6 @@ class MainWindow(QMainWindow):
         self.choice_sheet = QComboBox()
         self.choice_sheet.addItems(['Выберите название листа:'])
         self.choice_sheet.setDisabled(True)
-        """
-        self.page = QLabel('Введите название листа:')
-        default_sheet = get_settings("sheet_name")
-        self.name_of_page = f"{default_sheet if default_sheet is not None else ''}"
-        self.page_input = QLineEdit(f"{self.name_of_page}")
-        """
         self.name_of_page = None
         self.find_button = QPushButton('Найти шаблоны')
         self.find_button.setMaximumSize(300, 50)
@@ -121,6 +120,7 @@ class MainWindow(QMainWindow):
         file_layout = QHBoxLayout()
         file_layout.addWidget(self.open_button)
         file_layout.addWidget(self.file_label)
+        file_layout.addWidget(self.get_log_btn)
         layout.addLayout(file_layout)
 
         layout.addWidget(self.choice_sheet)
@@ -145,9 +145,15 @@ class MainWindow(QMainWindow):
         self.setGeometry(200, 200, 300, 200)
 
         # Соединяем кнопки с функцией
+        self.get_log_btn.clicked.connect(self.load_log)
         self.open_button.clicked.connect(self.open_file)
         self.go_button.clicked.connect(self.go)
         self.find_button.clicked.connect(self.find_pattern)
+
+    def load_log(self):
+        folder_path = QFileDialog.getExistingDirectory(self, 'Выберите папку куда сохранить SumLoadErrors.log')
+        shutil.copy(log_file, folder_path)
+        self.print_(f"Успех: {os.path.join(folder_path, 'SumLoadErrors.log')}")
 
     def print_(self, text: str, red=False):
         self.result_text.setText(text)
@@ -248,7 +254,7 @@ class MainWindow(QMainWindow):
             'length': self.choice_length.currentText(),
             'width': self.choice_width.currentText()
         }
-        with open(pkg_resources.resource_filename(__name__, 'SumLoadDefaultSettings.json'), "w") as json_file:
+        with open(json_set_file, "w", encoding="UTF-8") as json_file:
             json.dump(data, json_file)
         try:
             thick = float(self.choice_thick.currentText())
@@ -268,11 +274,11 @@ class MainWindow(QMainWindow):
             self.print_(str(answer))
 
 
-class ExceptionHandler:
+class ShowMustGoOn:
     def __init__(self, line: QLineEdit):
         self.line = line
 
-    def excepthook(self, er_type, value, traceback):
+    def catcher(self, er_type, value, traceback):
         # Запись непредвиденных ошибок в лог файл
         logging.error(f'{datetime.date.today()} {datetime.datetime.now().time()}', exc_info=(er_type, value, traceback))
         self.line.setText(str(value))
@@ -282,6 +288,6 @@ class ExceptionHandler:
 if __name__ == '__main__':
     app = QApplication(sys.argv)
     window = MainWindow()
-    sys.excepthook = ExceptionHandler(window.result_text).excepthook
+    sys.excepthook = ShowMustGoOn(window.result_text).catcher
     window.show()
     sys.exit(app.exec_())

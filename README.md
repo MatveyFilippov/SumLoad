@@ -6,4 +6,4 @@ It helps with his work
 It takes excel table, parse data and show sum for chosen parameters
 
 ---
-###### Lust update: SumLoad -v2 by 2023-10-31
+###### Lust update: SumLoad -v2.1 by 2023-11-29
