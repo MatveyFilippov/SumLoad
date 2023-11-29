@@ -40,33 +40,6 @@ def get_sum(sheet_name: str, file_path: str, proc: str, thick: float, width: flo
     return filtered["Eff.sqm"].sum()
 
 
-def get_unique_values(sheet_name, file_path, col_name) -> np.ndarray:
-    load = pd.read_excel(file_path, sheet_name=sheet_name)
-    load = load[col_name]
-    # Парсинг уникальных значений
-    unique_values = load.drop_duplicates().to_numpy()
-    # Преобразуем всё в строку
-    unique_values = unique_values.astype(str)
-    # Создаем список слов, которые нужно исключить
-    exclude_words = ['nun', '4']
-    # Фильтруем массив, оставляя только элементы, не содержащие исключаемые слова и символы
-    unique_values = np.extract(~np.isin(unique_values, exclude_words), unique_values)
-    mask = np.char.find(unique_values, ',') == -1
-    unique_values = unique_values[mask]
-    try:
-        unique_values = unique_values.astype(float)
-        # Определяем порядок сортировки
-        sort_order = np.argsort(unique_values)
-        # Применяем порядок сортировки к исходному массиву
-        unique_values = unique_values[sort_order]
-        # Преобразуем всё в строку
-        unique_values = unique_values.astype(str)
-    except ValueError:
-        # Преобразуем всё в строку
-        unique_values = unique_values.astype(str)
-    return unique_values
-
-
 class MainWindow(QMainWindow):
 
     def __init__(self):
@@ -162,6 +135,38 @@ class MainWindow(QMainWindow):
         else:
             self.result_text.setStyleSheet("color: black;")
 
+    def get_unique_values(self, sheet_name, file_path, col_name) -> np.ndarray:
+        load = pd.read_excel(file_path, sheet_name=sheet_name)
+        load = load[col_name]
+
+        # Парсинг уникальных значений
+        unique_values = load.drop_duplicates().to_numpy()
+        # Преобразуем всё в строку
+        unique_values = unique_values.astype(str)
+        # Создаем список слов, которые нужно исключить
+        exclude_words = ['nun', '4']
+        # Фильтруем массив, оставляя только элементы, не содержащие исключаемые слова и символы
+        unique_values = np.extract(~np.isin(unique_values, exclude_words), unique_values)
+        mask = np.char.find(unique_values, ',') == -1
+        if col_name == "Thick." and False in mask:
+            raise Exception("В excel файле в столбце 'Thick.' стоят ',' -> нужно сделать '.'")
+        try:
+            unique_values = unique_values.astype(float)
+            if len(set(list(unique_values))) != len(list(unique_values)):
+                self.print_(
+                    "НЕТОЧНОЫЕ ВЫЧИСЛЕНИЯ: Скорее всего в столбце 'Thick.' есть что-то по типу 2.6 & 2.60",
+                    True
+                )
+            # Определяем порядок сортировки
+            sort_order = np.argsort(unique_values)
+            # Применяем порядок сортировки к исходному массиву
+            unique_values = unique_values[sort_order]
+            # Преобразуем всё в строку
+            unique_values = unique_values.astype(str)
+        except ValueError:
+            unique_values = unique_values.astype(str)
+        return unique_values
+
     def open_file(self):
         # Открываем диалог выбора файла
         file_path, _ = QFileDialog.getOpenFileName(self, 'Выберите файл', '', 'Excel Files (*.xlsx *.xls)')
@@ -187,61 +192,27 @@ class MainWindow(QMainWindow):
         self.choice_sheet.setDisabled(False)
         self.find_button.setDisabled(False)
 
+    def put_params_in_btn(self, label: str, box: QComboBox, name_of_set: str):
+        try:
+            params = self.get_unique_values(self.name_of_page, self.file_path, label)
+        except (ValueError, KeyError):
+            self.print_("Выбран неправильный лист!", red=True)
+            return
+        box.addItems(params)
+        try:
+            def_num = int(list(params).index(get_settings(name_of_set))) + 1
+            box.setCurrentIndex(def_num)
+        except ValueError:
+            pass
+        box.setDisabled(False)
+
     def find_pattern(self):
         self.name_of_page = self.choice_sheet.currentText()
 
-        # Включаем кнопки
-        try:
-            procs = get_unique_values(self.name_of_page, self.file_path, "Proc.")
-        except (ValueError, KeyError):
-            self.print_("Выбран неправильный лист!", red=True)
-            return
-        self.choice_proc.addItems(procs)
-        try:
-            def_num_proc = int(list(procs).index(get_settings('proc'))) + 1
-            self.choice_proc.setCurrentIndex(def_num_proc)
-        except ValueError:
-            pass
-        self.choice_proc.setDisabled(False)
-
-        try:
-            thick = get_unique_values(self.name_of_page, self.file_path, "Thick.")
-        except (ValueError, KeyError):
-            self.print_("Выбран неправильный лист!", red=True)
-            return
-        self.choice_thick.addItems(thick)
-        try:
-            def_num_thick = int(list(thick).index(get_settings('thick'))) + 1
-            self.choice_thick.setCurrentIndex(def_num_thick)
-        except ValueError:
-            pass
-        self.choice_thick.setDisabled(False)
-
-        try:
-            length = get_unique_values(self.name_of_page, self.file_path, "Length")
-        except (ValueError, KeyError):
-            self.print_("Выбран неправильный лист!", red=True)
-            return
-        self.choice_length.addItems(length)
-        try:
-            def_num_length = int(list(length).index(get_settings('length'))) + 1
-            self.choice_length.setCurrentIndex(def_num_length)
-        except ValueError:
-            pass
-        self.choice_length.setDisabled(False)
-
-        try:
-            width = get_unique_values(self.name_of_page, self.file_path, "Width")
-        except (ValueError, KeyError):
-            self.print_("Выбран неправильный лист!", red=True)
-            return
-        self.choice_width.addItems(width)
-        try:
-            def_num_width = int(list(width).index(get_settings('width'))) + 1
-            self.choice_width.setCurrentIndex(def_num_width)
-        except ValueError:
-            pass
-        self.choice_width.setDisabled(False)
+        self.put_params_in_btn("Proc.", self.choice_proc, 'proc')
+        self.put_params_in_btn("Thick.", self.choice_thick, 'thick')
+        self.put_params_in_btn("Length", self.choice_length, 'length')
+        self.put_params_in_btn("Width", self.choice_width, 'width')
 
         self.go_button.setDisabled(False)
 
