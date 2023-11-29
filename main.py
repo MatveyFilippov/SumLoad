@@ -30,13 +30,25 @@ def get_settings(name_of_param: str):
 
 def get_sum(sheet_name: str, file_path: str, proc: str, thick: float, width: float, length: float):
     load = pd.read_excel(file_path, sheet_name=sheet_name)
-    load = load.loc[:, ["Proc.", "Thick.", "Width", "Length", "Eff.sqm"]]
+    load = load.loc[:, ["Proc.", "Thick.", "Width", "Length", "Eff.sqm", "DONE_TAG"]]
     filtered = load[
         (load['Proc.'] == proc) &
         (load['Thick.'] == thick) &
         (load['Width'] == width) &
         (load["Length"] == length)
-        ]
+    ]
+
+    try:
+        tags = filtered[(filtered["DONE_TAG"] == "X")]
+
+        # Определенный индекс, после которого нужно получить сумму
+        start_index = list(tags.index)[len(list(tags.index)) - 1]  # Индекс последнего 'X' в колонке DONE_TAG
+        index_in_filtered = filtered.index.get_loc(start_index) + 1
+
+        filtered = filtered.iloc[index_in_filtered:]
+    except IndexError:
+        raise Exception("НЕТОЧНЫЕ ВЫЧИСЛЕНИЯ: Не нашёл 'X' в столбце 'DONE_TAG'")
+
     return filtered["Eff.sqm"].sum()
 
 
@@ -104,8 +116,8 @@ class MainWindow(QMainWindow):
 
         layout.addWidget(self.choice_proc)
         layout.addWidget(self.choice_thick)
-        layout.addWidget(self.choice_width)
         layout.addWidget(self.choice_length)
+        layout.addWidget(self.choice_width)
 
         result_layout = QHBoxLayout()
         result_layout.addWidget(self.go_button)
