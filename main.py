@@ -12,7 +12,7 @@ from PyQt5.QtWidgets import (
     QApplication, QMainWindow, QWidget, QLabel, QPushButton,
     QFileDialog, QVBoxLayout, QHBoxLayout, QLineEdit, QComboBox
 )
-# TODO: pyinstaller --name=SumLoad --windowed --icon=/path/to/SumLoadIcon.ico --add-data=/path/to/SumLoadDefaultSettings.json:. --add-data=/path/to/SumLoadErrors.log:. main.py
+# TODO: pyinstaller --name=SumLoad --windowed --icon=SumLoadIcon.ico --add-data=SumLoadDefaultSettings.json:. --add-data=SumLoadErrors.log:. main.py
 # TODO: pyinstaller SumLoad.spec
 
 log_file = pkg_resources.resource_filename(__name__, 'SumLoadErrors.log')

@@ -1,3 +1,6 @@
 /.DS_Store
 /.idea/
 /playground.py
+/SumLoad.spec
+/dist/
+/build/
