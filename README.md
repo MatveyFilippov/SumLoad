@@ -6,4 +6,4 @@ It helps with his work
 It takes excel table, parse data and show sum for chosen parameters from 'X' in label 'DONE_TAG'
 
 ---
-###### Lust update: SumLoad -v2.2.0 by 2024-01-23
+###### Lust update: SumLoad -v2.3.0 by 2024-01-24

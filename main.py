@@ -1,6 +1,5 @@
 import shutil
 import sys
-import datetime
 import logging
 import os
 import pandas as pd
@@ -16,7 +15,7 @@ from PyQt5.QtWidgets import (
 log_file_path = pkg_resources.resource_filename(__name__, 'SumLoadErrors.log')
 json_set_file_path = pkg_resources.resource_filename(__name__, 'SumLoadDefaultSettings.json')
 logging.basicConfig(filename=log_file_path, level=logging.ERROR, encoding="UTF-8", datefmt="%Y-%m-%d %H:%M:%S",
-                   format="\n\n%(levelname)s %(asctime)s --> %(message)s")
+                    format="\n\n%(levelname)s %(message)s %(asctime)s")
 
 
 def get_settings(name_of_param: str):
@@ -126,7 +125,7 @@ class MainWindow(QMainWindow):
 
         # Настраиваем главное окно
         self.setWindowTitle('Получение суммы по шаблонам из Excel')
-        self.setGeometry(200, 200, 300, 200)
+        self.setGeometry(200, 200, 700, 300)
 
         # Соединяем кнопки с функцией
         self.get_log_btn.clicked.connect(self.load_log)
@@ -136,7 +135,13 @@ class MainWindow(QMainWindow):
 
     def load_log(self):
         folder_path = QFileDialog.getExistingDirectory(self, 'Выберите папку куда сохранить SumLoadErrors.log')
-        shutil.copy(log_file_path, folder_path)
+        if not folder_path:
+            self.print_("Не выбрана папка для сохранения файла с логами", red=True)
+            return
+        try:
+            shutil.copy(log_file_path, folder_path)
+        except Exception:
+            raise Exception("Не удалось сохранить файл с логами")
         self.print_(f"{os.path.join(folder_path, 'SumLoadErrors.log')}", preview_text="Файл сохранён:")
 
     def print_(self, text: str, red=False, preview_text="Приложение:"):
@@ -159,9 +164,12 @@ class MainWindow(QMainWindow):
         exclude_words = ['nun', '4']
         # Фильтруем массив, оставляя только элементы, не содержащие исключаемые слова и символы
         unique_values = np.extract(~np.isin(unique_values, exclude_words), unique_values)
-        mask = np.char.find(unique_values, ',') == -1
-        if col_name == "Thick." and False in mask:
-            raise Exception("В excel файле в столбце 'Thick.' стоят ',' -> нужно сделать '.'")
+
+        if col_name == "Thick.":
+            mask = np.char.find(unique_values, ',') == -1
+            if False in mask:
+                raise Exception("В excel файле в столбце 'Thick.' стоят ',' -> нужно сделать '.'")
+
         try:
             unique_values = unique_values.astype(float)
             if len(set(list(unique_values))) != len(list(unique_values)):
@@ -177,6 +185,7 @@ class MainWindow(QMainWindow):
             unique_values = unique_values.astype(str)
         except ValueError:
             unique_values = unique_values.astype(str)
+
         return unique_values
 
     def disable_all_buttons(self):
@@ -190,6 +199,7 @@ class MainWindow(QMainWindow):
 
     def open_file(self):
         self.disable_all_buttons()
+        self.print_("", preview_text="Здесь будет сумма по вашим шаблонам:")
 
         # Открываем диалог выбора файла
         file_path, _ = QFileDialog.getOpenFileName(self, 'Выберите файл', '', 'Excel Files (*.xlsx *.xls)')
@@ -205,6 +215,9 @@ class MainWindow(QMainWindow):
             self.print_('Заново выберите таблицу', True)
 
     def set_sheet_name(self):
+        first_item = self.choice_sheet.itemText(0)
+        self.choice_sheet.clear()
+        self.choice_sheet.addItems([first_item])
         workbook = openpyxl.load_workbook(self.file_path)
         self.choice_sheet.addItems(workbook.sheetnames)
         try:
@@ -222,7 +235,7 @@ class MainWindow(QMainWindow):
         try:
             params = self.get_unique_values(xlsx_list, label)
         except (ValueError, KeyError):
-            raise Exception(f"Отсутствует столбец {label} на выбранном листе")
+            raise Exception(f"Отсутствует столбец '{label}' на выбранном листе")
         box.addItems(params)
         try:
             def_num = int(list(params).index(get_settings(name_of_set))) + 1
@@ -284,7 +297,7 @@ class ShowMustGoOn:
 
     def catcher(self, er_type, value, traceback):
         # Запись непредвиденных ошибок в лог файл
-        logging.error(exc_info=(er_type, value, traceback))
+        logging.error("from", exc_info=(er_type, value, traceback))
         self.preview.setText("ОШИБКА:")
         self.line.setText(str(value))
         self.line.setStyleSheet("color: red;")
