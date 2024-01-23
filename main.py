@@ -12,17 +12,15 @@ from PyQt5.QtWidgets import (
     QApplication, QMainWindow, QWidget, QLabel, QPushButton,
     QFileDialog, QVBoxLayout, QHBoxLayout, QLineEdit, QComboBox
 )
-# TODO: pyinstaller --name=SumLoad --windowed --icon=SumLoadIcon.ico --add-data=SumLoadDefaultSettings.json:. --add-data=SumLoadErrors.log:. main.py
-# TODO: pyinstaller SumLoad.spec
 
-log_file = pkg_resources.resource_filename(__name__, 'SumLoadErrors.log')
-json_set_file = pkg_resources.resource_filename(__name__, 'SumLoadDefaultSettings.json')
-logging.basicConfig(filename=log_file, level=logging.ERROR)
+log_file_path = pkg_resources.resource_filename(__name__, 'SumLoadErrors.log')
+json_set_file_path = pkg_resources.resource_filename(__name__, 'SumLoadDefaultSettings.json')
+logging.basicConfig(filename=log_file_path, level=logging.ERROR)
 
 
 def get_settings(name_of_param: str):
     try:
-        with open(json_set_file, "r", encoding="UTF-8") as json_file:
+        with open(json_set_file_path, "r", encoding="UTF-8") as json_file:
             return json.load(json_file)[name_of_param]
     except Exception:
         return None
@@ -43,7 +41,7 @@ def get_sum(sheet_name: str, file_path: str, proc: str, thick: float, width: flo
 
         # Определенный индекс, после которого нужно получить сумму
         start_index = list(tags.index)[len(list(tags.index)) - 1]  # Индекс последнего 'X' в колонке DONE_TAG
-        index_in_filtered = filtered.index.get_loc(start_index) + 1
+        index_in_filtered = filtered.index.get_loc(start_index)
 
         filtered = filtered.iloc[index_in_filtered:]
     except IndexError:
@@ -137,18 +135,19 @@ class MainWindow(QMainWindow):
 
     def load_log(self):
         folder_path = QFileDialog.getExistingDirectory(self, 'Выберите папку куда сохранить SumLoadErrors.log')
-        shutil.copy(log_file, folder_path)
-        self.print_(f"Успех: {os.path.join(folder_path, 'SumLoadErrors.log')}")
+        shutil.copy(log_file_path, folder_path)
+        self.print_(f"{os.path.join(folder_path, 'SumLoadErrors.log')}", preview_text="Файл сохранён:")
 
-    def print_(self, text: str, red=False):
+    def print_(self, text: str, red=False, preview_text="Приложение:"):
         self.result_text.setText(text)
         if red:
+            preview_text = "Внимание:"
             self.result_text.setStyleSheet("color: red;")
         else:
             self.result_text.setStyleSheet("color: black;")
+        self.result_preview.setText(preview_text)
 
-    def get_unique_values(self, sheet_name, file_path, col_name) -> np.ndarray:
-        load = pd.read_excel(file_path, sheet_name=sheet_name)
+    def get_unique_values(self, load: pd.DataFrame, col_name) -> np.ndarray:
         load = load[col_name]
 
         # Парсинг уникальных значений
@@ -179,7 +178,18 @@ class MainWindow(QMainWindow):
             unique_values = unique_values.astype(str)
         return unique_values
 
+    def disable_all_buttons(self):
+        self.choice_sheet.setDisabled(True)
+        self.find_button.setDisabled(True)
+        self.choice_proc.setDisabled(True)
+        self.choice_width.setDisabled(True)
+        self.choice_thick.setDisabled(True)
+        self.choice_length.setDisabled(True)
+        self.go_button.setDisabled(True)
+
     def open_file(self):
+        self.disable_all_buttons()
+
         # Открываем диалог выбора файла
         file_path, _ = QFileDialog.getOpenFileName(self, 'Выберите файл', '', 'Excel Files (*.xlsx *.xls)')
 
@@ -190,8 +200,8 @@ class MainWindow(QMainWindow):
             self.file_label.setText(file_path)
             self.set_sheet_name()
         else:
-            # Выводим сообщение, если файл не выбран
-            self.print_('Файл не выбран')
+            self.file_label.setText('Файл не выбран')
+            self.print_('Заново выберите таблицу', True)
 
     def set_sheet_name(self):
         workbook = openpyxl.load_workbook(self.file_path)
@@ -204,12 +214,14 @@ class MainWindow(QMainWindow):
         self.choice_sheet.setDisabled(False)
         self.find_button.setDisabled(False)
 
-    def put_params_in_btn(self, label: str, box: QComboBox, name_of_set: str):
+    def put_params_in_btn(self, label: str, box: QComboBox, name_of_set: str, xlsx_list: pd.DataFrame):
+        box_first_item = box.itemText(0)
+        box.clear()
+        box.addItems([box_first_item])
         try:
-            params = self.get_unique_values(self.name_of_page, self.file_path, label)
+            params = self.get_unique_values(xlsx_list, label)
         except (ValueError, KeyError):
-            self.print_("Выбран неправильный лист!", red=True)
-            return
+            raise Exception(f"Отсутствует столбец {label} на выбранном листе")
         box.addItems(params)
         try:
             def_num = int(list(params).index(get_settings(name_of_set))) + 1
@@ -219,12 +231,20 @@ class MainWindow(QMainWindow):
         box.setDisabled(False)
 
     def find_pattern(self):
+        self.print_("", preview_text="Здесь будет сумма по вашим шаблонам:")
         self.name_of_page = self.choice_sheet.currentText()
 
-        self.put_params_in_btn("Proc.", self.choice_proc, 'proc')
-        self.put_params_in_btn("Thick.", self.choice_thick, 'thick')
-        self.put_params_in_btn("Length", self.choice_length, 'length')
-        self.put_params_in_btn("Width", self.choice_width, 'width')
+        load = pd.read_excel(self.file_path, sheet_name=self.name_of_page)
+
+        try:
+            load["DONE_TAG"]
+        except KeyError:
+            raise Exception("Отсутствует столбец 'DONE_TAG' на выбранном листе")
+
+        self.put_params_in_btn("Proc.", self.choice_proc, 'proc', load)
+        self.put_params_in_btn("Thick.", self.choice_thick, 'thick', load)
+        self.put_params_in_btn("Length", self.choice_length, 'length', load)
+        self.put_params_in_btn("Width", self.choice_width, 'width', load)
 
         self.go_button.setDisabled(False)
 
@@ -237,7 +257,7 @@ class MainWindow(QMainWindow):
             'length': self.choice_length.currentText(),
             'width': self.choice_width.currentText()
         }
-        with open(json_set_file, "w", encoding="UTF-8") as json_file:
+        with open(json_set_file_path, "w", encoding="UTF-8") as json_file:
             json.dump(data, json_file)
         try:
             thick = float(self.choice_thick.currentText())
@@ -253,17 +273,18 @@ class MainWindow(QMainWindow):
         if answer == 0:
             self.print_("Ничего не найдено по этим шаблонам", red=True)
         else:
-            self.result_preview.setText("Сумма по вашим параметрам:")
-            self.print_(str(answer))
+            self.print_(str(answer), preview_text="Сумма по вашим параметрам:")
 
 
 class ShowMustGoOn:
-    def __init__(self, line: QLineEdit):
+    def __init__(self, line: QLineEdit, preview: QLabel):
         self.line = line
+        self.preview = preview
 
     def catcher(self, er_type, value, traceback):
         # Запись непредвиденных ошибок в лог файл
         logging.error(f'{datetime.date.today()} {datetime.datetime.now().time()}', exc_info=(er_type, value, traceback))
+        self.preview.setText("ОШИБКА:")
         self.line.setText(str(value))
         self.line.setStyleSheet("color: red;")
 
@@ -271,6 +292,6 @@ class ShowMustGoOn:
 if __name__ == '__main__':
     app = QApplication(sys.argv)
     window = MainWindow()
-    sys.excepthook = ShowMustGoOn(window.result_text).catcher
+    sys.excepthook = ShowMustGoOn(window.result_text, window.result_preview).catcher
     window.show()
     sys.exit(app.exec_())

@@ -3,7 +3,7 @@
 It helps with his work
 
 ### How it works
-It takes excel table, parse data and show sum for chosen parameters
+It takes excel table, parse data and show sum for chosen parameters from 'X' in label 'DONE_TAG'
 
 ---
-###### Lust update: SumLoad -v2.1.1 by 2024-01-22
+###### Lust update: SumLoad -v2.2.0 by 2024-01-23

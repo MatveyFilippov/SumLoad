@@ -1,16 +1,24 @@
 # Как из этого кода собрать обычное приложение?
-# 1) pip install pyinstaller
+1) pip install pyinstaller
 
-# 2) pyinstaller --name=your_app_name --windowed main.py
-# где вместо 'your_app_name' нужно подставить название приложения
-# где вместо 'main.py' вписать название файла исполняемого в качестве приложения
+2) pyinstaller --name=your_app_name --windowed main.py
+где вместо 'your_app_name' нужно подставить название приложения
+где вместо 'main.py' вписать название файла исполняемого в качестве приложения
 
-# 3) pyinstaller your_app_name.spec
-# где вместо 'your_app_name' нужно подставить название приложения
+3) pyinstaller your_app_name.spec
+где вместо 'your_app_name' нужно подставить название приложения
 
-# Если ты имеешь 2 новые папки (built, dist) и новый файл your_app_name.spec, то ты на верном пути
+Если ты имеешь 2 новые папки (built, dist) и новый файл your_app_name.spec, то ты на верном пути
 
-# 4) В папке dist хранится все нужные тебе вещи (папка с библиотеками и само приложение) -> забирай папку и пользуйся!
+4) В папке dist хранится все нужные тебе вещи (папка с библиотеками и само приложение) -> забирай папку и пользуйся!
 
-# Можно добавить доп настройки по типу:
-# --onefile --add-data=/path/to/file:. --icon=/path/to/photo.ico
+Можно добавить доп настройки по типу:
+--onefile --add-data=/path/to/file:. --icon=/path/to/photo.ico
+
+
+########################################################################################################################
+# Дефолтно для SumLoad:
+
+pyinstaller --name=SumLoad --windowed --icon=SumLoadIcon.ico --add-data=SumLoadDefaultSettings.json:. --add-data=SumLoadErrors.log:. main.py
+
+pyinstaller SumLoad.spec
