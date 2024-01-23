@@ -15,7 +15,8 @@ from PyQt5.QtWidgets import (
 
 log_file_path = pkg_resources.resource_filename(__name__, 'SumLoadErrors.log')
 json_set_file_path = pkg_resources.resource_filename(__name__, 'SumLoadDefaultSettings.json')
-logging.basicConfig(filename=log_file_path, level=logging.ERROR)
+logging.basicConfig(filename=log_file_path, level=logging.ERROR, encoding="UTF-8", datefmt="%Y-%m-%d %H:%M:%S",
+                   format="\n\n%(levelname)s %(asctime)s --> %(message)s")
 
 
 def get_settings(name_of_param: str):
@@ -283,7 +284,7 @@ class ShowMustGoOn:
 
     def catcher(self, er_type, value, traceback):
         # Запись непредвиденных ошибок в лог файл
-        logging.error(f'{datetime.date.today()} {datetime.datetime.now().time()}', exc_info=(er_type, value, traceback))
+        logging.error(exc_info=(er_type, value, traceback))
         self.preview.setText("ОШИБКА:")
         self.line.setText(str(value))
         self.line.setStyleSheet("color: red;")
